@@ -1,0 +1,40 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+
+base_url = 'https://www.timesjobs.com/candidate/job-search.html?searchType=personalizedSearch&from=submit&searchTextSrc=&searchTextText=&txtKeywords=%22Human+Resources%22&txtLocation='
+
+def fetch_jobs(page_number=1):
+    url = f'{base_url}&sequence={page_number}'
+    response = requests.get(url).text
+    soup = BeautifulSoup(response, 'lxml')
+    return soup.find_all('li', class_="clearfix job-bx wht-shd-bx")
+
+with open('jobs.csv', 'w', newline='', encoding='utf-8') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Job Title', 'Company Name', 'Key Skills', 'Location', 'Job Description', 'More Info'])
+
+    page_number = 1
+    while True:
+        jobs = fetch_jobs(page_number)
+        if not jobs:
+            break
+        for job in jobs:
+            job_title_parts = job.header.h2.a.find_all('strong', class_='blkclor')
+            if job_title_parts:
+                job_title = ' '.join(part.get_text() for part in job_title_parts)
+            else:
+                job_title = job.header.h2.a.text.strip()
+
+            company_name = job.find('h3', class_="joblist-comp-name").text.strip()
+            key_skills = job.find('span', class_='srp-skills').text.strip()
+            location = job.find('ul', class_='top-jd-dtl clearfix').span.text.strip()
+            job_description = job.find('ul', class_='list-job-dtl clearfix').li.text.strip()
+            more_info = job.header.h2.a['href']
+
+            writer.writerow([job_title, company_name, key_skills, location, job_description, more_info])
+        page_number += 1
+
+print("Data saved to jobs.csv")
+
+
